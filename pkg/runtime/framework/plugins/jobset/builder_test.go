@@ -415,6 +415,69 @@ func TestBuilderInitializer(t *testing.T) {
 				},
 			},
 		},
+		"custom runtime template with unnamed sidecar container": {
+			jobSet: &jobsetv1alpha2ac.JobSetApplyConfiguration{
+				Spec: &jobsetv1alpha2ac.JobSetSpecApplyConfiguration{
+					ReplicatedJobs: []jobsetv1alpha2ac.ReplicatedJobApplyConfiguration{
+						{
+							Template: &batchv1ac.JobTemplateSpecApplyConfiguration{
+								Spec: &batchv1ac.JobSpecApplyConfiguration{
+									Template: &corev1ac.PodTemplateSpecApplyConfiguration{
+										Spec: &corev1ac.PodSpecApplyConfiguration{
+											Containers: []corev1ac.ContainerApplyConfiguration{
+												{},
+											},
+										},
+									},
+								},
+								ObjectMetaApplyConfiguration: &metav1ac.ObjectMetaApplyConfiguration{
+									Labels: map[string]string{
+										constants.LabelTrainJobAncestor: constants.DatasetInitializer,
+									},
+								},
+							},
+							Name:     ptr.To("initializer-job"),
+							Replicas: ptr.To[int32](1),
+						},
+					},
+				},
+			},
+			trainJob: &trainer.TrainJob{
+				Spec: trainer.TrainJobSpec{
+					Initializer: &trainer.Initializer{
+						Dataset: &trainer.DatasetInitializer{
+							StorageUri: ptr.To("hf://my-org/my-dataset"),
+						},
+					},
+				},
+			},
+			wantJobSet: &jobsetv1alpha2ac.JobSetApplyConfiguration{
+				Spec: &jobsetv1alpha2ac.JobSetSpecApplyConfiguration{
+					ReplicatedJobs: []jobsetv1alpha2ac.ReplicatedJobApplyConfiguration{
+						{
+							Template: &batchv1ac.JobTemplateSpecApplyConfiguration{
+								Spec: &batchv1ac.JobSpecApplyConfiguration{
+									Template: &corev1ac.PodTemplateSpecApplyConfiguration{
+										Spec: &corev1ac.PodSpecApplyConfiguration{
+											Containers: []corev1ac.ContainerApplyConfiguration{
+												{},
+											},
+										},
+									},
+								},
+								ObjectMetaApplyConfiguration: &metav1ac.ObjectMetaApplyConfiguration{
+									Labels: map[string]string{
+										constants.LabelTrainJobAncestor: constants.DatasetInitializer,
+									},
+								},
+							},
+							Name:     ptr.To("initializer-job"),
+							Replicas: ptr.To[int32](1),
+						},
+					},
+				},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -888,6 +951,134 @@ func TestBuilderTrainer(t *testing.T) {
 							},
 							Name:     ptr.To(constants.Node),
 							Replicas: ptr.To[int32](2),
+						},
+					},
+				},
+			},
+		},
+		"custom runtime template with unnamed sidecar container": {
+			jobSet: &jobsetv1alpha2ac.JobSetApplyConfiguration{
+				Spec: &jobsetv1alpha2ac.JobSetSpecApplyConfiguration{
+					ReplicatedJobs: []jobsetv1alpha2ac.ReplicatedJobApplyConfiguration{
+						{
+							Template: &batchv1ac.JobTemplateSpecApplyConfiguration{
+								Spec: &batchv1ac.JobSpecApplyConfiguration{
+									Template: &corev1ac.PodTemplateSpecApplyConfiguration{
+										Spec: &corev1ac.PodSpecApplyConfiguration{
+											Containers: []corev1ac.ContainerApplyConfiguration{
+												{},
+											},
+										},
+									},
+								},
+								ObjectMetaApplyConfiguration: &metav1ac.ObjectMetaApplyConfiguration{
+									Labels: map[string]string{
+										constants.LabelTrainJobAncestor: constants.AncestorTrainer,
+									},
+								},
+							},
+							Name:     ptr.To(constants.Node),
+							Replicas: ptr.To[int32](1),
+						},
+					},
+				},
+			},
+			trainJob: &trainer.TrainJob{
+				Spec: trainer.TrainJobSpec{
+					Trainer: &trainer.Trainer{
+						Command: []string{"torchrun"},
+					},
+				},
+			},
+			info: &runtime.Info{},
+			wantJobSet: &jobsetv1alpha2ac.JobSetApplyConfiguration{
+				Spec: &jobsetv1alpha2ac.JobSetSpecApplyConfiguration{
+					ReplicatedJobs: []jobsetv1alpha2ac.ReplicatedJobApplyConfiguration{
+						{
+							Template: &batchv1ac.JobTemplateSpecApplyConfiguration{
+								Spec: &batchv1ac.JobSpecApplyConfiguration{
+									Template: &corev1ac.PodTemplateSpecApplyConfiguration{
+										Spec: &corev1ac.PodSpecApplyConfiguration{
+											Containers: []corev1ac.ContainerApplyConfiguration{
+												{},
+											},
+										},
+									},
+								},
+								ObjectMetaApplyConfiguration: &metav1ac.ObjectMetaApplyConfiguration{
+									Labels: map[string]string{
+										constants.LabelTrainJobAncestor: constants.AncestorTrainer,
+									},
+								},
+							},
+							Name:     ptr.To(constants.Node),
+							Replicas: ptr.To[int32](1),
+						},
+					},
+				},
+			},
+		},
+		"nil replicatedJob Name with runLauncherAsNode does not panic": {
+			jobSet: &jobsetv1alpha2ac.JobSetApplyConfiguration{
+				Spec: &jobsetv1alpha2ac.JobSetSpecApplyConfiguration{
+					ReplicatedJobs: []jobsetv1alpha2ac.ReplicatedJobApplyConfiguration{
+						{
+							Template: &batchv1ac.JobTemplateSpecApplyConfiguration{
+								Spec: &batchv1ac.JobSpecApplyConfiguration{
+									Template: &corev1ac.PodTemplateSpecApplyConfiguration{
+										Spec: &corev1ac.PodSpecApplyConfiguration{
+											Containers: []corev1ac.ContainerApplyConfiguration{
+												*corev1ac.Container().WithName("launcher"),
+											},
+										},
+									},
+								},
+								ObjectMetaApplyConfiguration: &metav1ac.ObjectMetaApplyConfiguration{
+									Labels: map[string]string{},
+								},
+							},
+							Name:     nil,
+							Replicas: ptr.To[int32](1),
+						},
+					},
+				},
+			},
+			trainJob: &trainer.TrainJob{
+				Spec: trainer.TrainJobSpec{
+					Trainer: &trainer.Trainer{
+						Command: []string{"torchrun"},
+					},
+				},
+			},
+			info: &runtime.Info{
+				RuntimePolicy: runtime.RuntimePolicy{
+					MLPolicySource: &trainer.MLPolicySource{
+						MPI: &trainer.MPIMLPolicySource{
+							RunLauncherAsNode: ptr.To(true),
+						},
+					},
+				},
+			},
+			wantJobSet: &jobsetv1alpha2ac.JobSetApplyConfiguration{
+				Spec: &jobsetv1alpha2ac.JobSetSpecApplyConfiguration{
+					ReplicatedJobs: []jobsetv1alpha2ac.ReplicatedJobApplyConfiguration{
+						{
+							Template: &batchv1ac.JobTemplateSpecApplyConfiguration{
+								Spec: &batchv1ac.JobSpecApplyConfiguration{
+									Template: &corev1ac.PodTemplateSpecApplyConfiguration{
+										Spec: &corev1ac.PodSpecApplyConfiguration{
+											Containers: []corev1ac.ContainerApplyConfiguration{
+												*corev1ac.Container().WithName("launcher"),
+											},
+										},
+									},
+								},
+								ObjectMetaApplyConfiguration: &metav1ac.ObjectMetaApplyConfiguration{
+									Labels: map[string]string{},
+								},
+							},
+							Name:     nil,
+							Replicas: ptr.To[int32](1),
 						},
 					},
 				},
