@@ -52,7 +52,7 @@ func (b *Builder) Initializer(trainJob *trainer.TrainJob) *Builder {
 			}
 			for j, container := range rJob.Template.Spec.Template.Spec.Containers {
 				// Update values for the dataset initializer container.
-				if *container.Name == constants.DatasetInitializer && trainJob.Spec.Initializer != nil && trainJob.Spec.Initializer.Dataset != nil {
+				if ptr.Deref(container.Name, "") == constants.DatasetInitializer && trainJob.Spec.Initializer != nil && trainJob.Spec.Initializer.Dataset != nil {
 					env := &b.Spec.ReplicatedJobs[i].Template.Spec.Template.Spec.Containers[j].Env
 					// Update the dataset initializer envs.
 					if storageUri := trainJob.Spec.Initializer.Dataset.StorageUri; storageUri != nil {
@@ -78,7 +78,7 @@ func (b *Builder) Initializer(trainJob *trainer.TrainJob) *Builder {
 			}
 			for j, container := range rJob.Template.Spec.Template.Spec.Containers {
 				// Update values for the model initializer container.
-				if *container.Name == constants.ModelInitializer && trainJob.Spec.Initializer != nil && trainJob.Spec.Initializer.Model != nil {
+				if ptr.Deref(container.Name, "") == constants.ModelInitializer && trainJob.Spec.Initializer != nil && trainJob.Spec.Initializer.Model != nil {
 					env := &b.Spec.ReplicatedJobs[i].Template.Spec.Template.Spec.Containers[j].Env
 					// Update the model initializer envs.
 					if storageUri := trainJob.Spec.Initializer.Model.StorageUri; storageUri != nil {
@@ -124,7 +124,7 @@ func (b *Builder) Trainer(info *runtime.Info, trainJob *trainer.TrainJob) *Build
 			}
 			// Update values for the Trainer container.
 			for j, container := range rJob.Template.Spec.Template.Spec.Containers {
-				if *container.Name == constants.Node {
+				if ptr.Deref(container.Name, "") == constants.Node {
 					// Update the command and args from the TrainJob trainer. The image is set on the PodSet
 					// by the MLPolicy plugins in EnforceMLPolicy and synced to the JobSet in Build.
 					if jobTrainer := trainJob.Spec.Trainer; jobTrainer != nil {
@@ -138,9 +138,9 @@ func (b *Builder) Trainer(info *runtime.Info, trainJob *trainer.TrainJob) *Build
 				}
 			}
 		}
-		if ancestor == constants.AncestorTrainer || b.isRunLauncherAsNode(info) && *rJob.Name == constants.Node {
+		if ancestor == constants.AncestorTrainer || (b.isRunLauncherAsNode(info) && ptr.Deref(rJob.Name, "") == constants.Node) {
 			for j, container := range rJob.Template.Spec.Template.Spec.Containers {
-				if *container.Name == constants.Node {
+				if ptr.Deref(container.Name, "") == constants.Node {
 					if jobTrainer := trainJob.Spec.Trainer; jobTrainer != nil {
 						apply.UpsertEnvVars(
 							&b.Spec.ReplicatedJobs[i].Template.Spec.Template.Spec.Containers[j].Env,
